@@ -1,0 +1,3 @@
+[submodule "extern/famsa3di"]
+	path = extern/famsa3di
+	url = https://github.com/Neclow/famsa3di

@@ -13,7 +13,7 @@ To install the dependencies, run:
 ```bash
 # Install conda/pypi dependencies
 pixi install
-# Set up & build other dependencies (r-envalysis, FAMSA3di)
+# Set up & build other dependencies (envalysis, FAMSA3di)
 pixi run post_install
 ```
 
@@ -30,7 +30,7 @@ We use a custom fork of [FAMSA](https://github.com/refresh-bio/FAMSA) to make it
 To add the famsa3di submodule manually, use:
 
 ```bash
-git submodule add --force https://github.com/Neclow/famsa3di extern/famsa3di
+git submodule add https://github.com/Neclow/famsa3di extern/famsa3di
 cd extern/famsa3di
 git submodule update --init --recursive
 ```
@@ -38,19 +38,4 @@ git submodule update --init --recursive
 ### Data
 
 TBD
-
-### Running the pipeline
-
-This project uses [dvc](https://dvc.org/doc/start) for managing and versioning the workflow. All the steps in the pipeline can be run using:
-
-```bash
-pixi run repro
-```
-
-Single steps can be run using dvc as follows:
-
-```bash
-pixi shell
-dvc repro stage_name
-```
 

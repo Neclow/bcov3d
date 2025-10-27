@@ -1,3 +1,5 @@
+"""FASTA processing functions."""
+
 import math
 import json
 import os
@@ -193,13 +195,6 @@ def intersect(input1, input2, output1, output2):
             f2.write(f">{id_}\n{str(data2[id_].seq)}\n")
 
     return cross_keys
-
-
-def sort_by_taxon(infile, outfile):
-    records = dict(sorted(SeqIO.to_dict(SeqIO.parse(infile, "fasta")).items()))
-    with open(outfile, "w", encoding="utf-8") as f_out:
-        for id_, record in records.items():
-            f_out.write(f">{id_}\n{str(record.seq)}\n")
 
 
 def pgap(infile):

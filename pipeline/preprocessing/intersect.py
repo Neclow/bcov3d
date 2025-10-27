@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 
-from Bio import SeqIO
+from src.fasta import intersect
 
 
 def parse_args():

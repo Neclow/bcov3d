@@ -1,16 +1,13 @@
 import bisect
 import json
 import operator
-
+from argparse import ArgumentParser
 from functools import partial
 
 import pandas as pd
-
 from Bio import SeqIO
 
-aa_dir = "data/aa"
-fadir_aa = f"{aa_dir}/fa"
-domdir_aa = f"{aa_dir}/doms"
+fadir_aa = "data/aa/fa"
 fadir_3di = "data/3di/fa"
 
 columns = [
@@ -73,10 +70,26 @@ def old_interval_to_new_coords(x, start_col, end_col, old_positions_in_new):
     return new_start, new_end
 
 
+def parse_args():
+    parser = ArgumentParser(description="Clean domain data")
+    parser.add_argument(
+        "input",
+        type=str,
+        help="Path to the input file containing domain data.",
+    )
+    parser.add_argument(
+        "output",
+        type=str,
+        help="Path to save the cleaned domain data.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_args()
     doms = (
-        pd.read_csv(f"{domdir_aa}/subset1_unaligned.fa.tsv", sep="\t", header=None)
-        .rename(columns={i: col for i, col in enumerate(columns)})
+        pd.read_csv(args.input, sep="\t", header=None)
+        .rename(columns=dict(enumerate(columns)))
         .drop(["t", "date", "goXRefs", "pathwayXRefs"], axis=1)
     )
 
@@ -256,6 +269,6 @@ if __name__ == "__main__":
 
     doms.sort_values(by=["id", "start", "signature_library"]).groupby(
         ["id", "entry_accession"]
-    ).head(1).to_csv(f"{domdir_aa}/subset1_with_3di.tsv", sep="\t", index=False)
+    ).head(1).to_csv(args.output, sep="\t", index=False)
 
     print("Done")

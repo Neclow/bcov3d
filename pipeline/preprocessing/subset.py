@@ -9,10 +9,11 @@ import pandas as pd
 
 from src.fasta import pgap, filter_taxa, filter_sites, unalign
 
-MAX_AA = {
+MAX_CHARS = {
     "dna": 4,
     "rna": 4,
     "aa": 20,
+    "3di": 20,
 }
 
 
@@ -43,24 +44,9 @@ def parse_args():
         help="Column name for sequence IDs in the metadata file",
     )
     parser.add_argument(
-        "--sort-gappy",
-        action="store_true",
-        help="Sort the sequence by the proportion of gaps before sampling",
-    )
-    parser.add_argument(
         "--filtersites",
         type=int,
         help="Filter out highly variable sites in the sequences before sampling",
-    )
-    parser.add_argument(
-        "--filter-receptors",
-        action="store_true",
-        help="Filter out structures that are bound to receptors (e.g., ACE2)",
-    )
-    parser.add_argument(
-        "--random",
-        action="store_true",
-        help="Randomly sample sequences instead of taking the first n from each group",
     )
     parser.add_argument(
         "--seed",
@@ -72,7 +58,7 @@ def parse_args():
         "--dtype",
         type=str,
         default="aa",
-        choices=["dna", "rna", "aa"],
+        choices=("dna", "rna", "aa", "3di"),
         help="Type of sequences in the input files",
     )
     return parser.parse_args()
@@ -93,16 +79,15 @@ if __name__ == "__main__":
 
     start_df.dropna(subset=["mpgap"], inplace=True)
 
-    if args.sort_gappy:
-        # Sort by the proportion of gaps
-        start_df.sort_values(
-            by=["has_receptor_or_antibody", "Resolution"],
-            ascending=True,
-            inplace=True,
-        )
-    elif args.random:
-        # Shuffle the DataFrame
-        start_df.sample(frac=1, random_state=args.seed, inplace=True)
+    # Sort by absence of receptor + structure resolution
+    start_df.sort_values(
+        by=["has_receptor_or_antibody", "Resolution"],
+        ascending=True,
+        inplace=True,
+    )
+    # elif args.random:
+    #     # Shuffle the DataFrame
+    #     start_df.sample(frac=1, random_state=args.seed, inplace=True)
 
     subset_df = start_df.groupby(args.by.split(","), sort=False, dropna=False).head(
         args.n
@@ -120,7 +105,7 @@ if __name__ == "__main__":
     filter_taxa(args.input1, output1, ids_to_sample)
     filter_taxa(args.input2, output2, ids_to_sample)
     if args.filtersites is not None:
-        assert 1 < args.filtersites <= MAX_AA[args.dtype]
+        assert 1 < args.filtersites <= MAX_CHARS[args.dtype]
         filter_sites(
             output1,
             output1,

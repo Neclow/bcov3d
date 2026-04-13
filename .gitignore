@@ -285,3 +285,7 @@ drafts*.ipynb
 # Substitution models
 Q.3DI.*
 VK23*
+
+# Notes
+notes/
+papers/

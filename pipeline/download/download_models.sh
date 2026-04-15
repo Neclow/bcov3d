@@ -1,3 +1,5 @@
+#!/bin/bash
+
 MODEL_DIR="data/models"
 mkdir -p ${MODEL_DIR}
 

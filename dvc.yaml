@@ -1,0 +1,97 @@
+stages:
+  download_data:
+    cmd: >-
+      python -m pipeline.download.download_data
+      ${dirs.metadata}/aug.csv ${dirs.metadata}/variants.json ${dirs.cif}
+      ${dirs.metadata}/clean.csv ${dirs.metadata}/names.json
+      --threads ${threads} --format cif
+    desc: Download CIF files from PDB, prepare metadata with wwPDB validation metrics
+    deps:
+      - ${dirs.metadata}/aug.csv
+      - ${dirs.metadata}/variants.json
+    params:
+      - threads
+    outs:
+      - ${dirs.cif}
+      - ${dirs.metadata}/clean.csv
+      - ${dirs.metadata}/names.json
+
+  extract:
+    cmd: |
+      python -m pipeline.preprocessing.extract_aa ${dirs.cif} ${dirs.aa}/raw.fa ${dirs.aa}/chains.json --threads ${threads}
+      bash pipeline/preprocessing/extract_3di.sh ${dirs.cif} ${dirs.foldseek} ${dirs.3di}/raw.fa ${threads}
+    desc: Extract AA sequences (longest spike chain) and 3DI sequences from CIF files
+    deps:
+      - ${dirs.cif}
+    params:
+      - threads
+    outs:
+      - ${dirs.aa}/raw.fa
+      - ${dirs.aa}/chains.json
+      - ${dirs.3di}/raw.fa
+
+  clean:
+    cmd: >-
+      python -m pipeline.preprocessing.clean
+      ${dirs.3di}/raw.fa ${dirs.aa}/raw.fa ${dirs.aa}/chains.json ${dirs.metadata}/clean.csv
+      ${dirs.3di}/filtered.fa ${dirs.aa}/filtered.fa ${dirs.metadata}/filtered.csv
+      --spike_only --exclude_chimeric
+    desc: Match 3DI to spike chains, filter by binding partners and chimeric constructs
+    deps:
+      - ${dirs.3di}/raw.fa
+      - ${dirs.aa}/raw.fa
+      - ${dirs.aa}/chains.json
+      - ${dirs.metadata}/clean.csv
+    outs:
+      - ${dirs.3di}/filtered.fa
+      - ${dirs.aa}/filtered.fa
+      - ${dirs.metadata}/filtered.csv
+
+  align:
+    cmd: |
+      ginsi --leavegappyregion --thread ${threads} --maxiterate ${mafft.maxiterate} ${dirs.aa}/filtered.fa > ${dirs.aa}/aligned.fa
+      pixi run famsa3di -t ${threads} ${dirs.3di}/filtered.fa ${dirs.3di}/aligned.fa
+    desc: Align AA (MAFFT/ginsi) and 3DI (FAMSA3DI) sequences
+    deps:
+      - ${dirs.aa}/filtered.fa
+      - ${dirs.3di}/filtered.fa
+    params:
+      - threads
+      - mafft.maxiterate
+    outs:
+      - ${dirs.aa}/aligned.fa
+      - ${dirs.3di}/aligned.fa
+
+  trim:
+    cmd: |
+      trimal -in ${dirs.aa}/aligned.fa -out ${dirs.aa}/trimmed.fa -gt ${trimal.gt} -colnumbering > ${dirs.aa}/trimmed.colnumbering
+      trimal -in ${dirs.3di}/aligned.fa -out ${dirs.3di}/trimmed.fa -gt ${trimal.gt} -colnumbering > ${dirs.3di}/trimmed.colnumbering
+    desc: Trim alignments using trimAl
+    deps:
+      - ${dirs.aa}/aligned.fa
+      - ${dirs.3di}/aligned.fa
+    params:
+      - trimal.gt
+    outs:
+      - ${dirs.aa}/trimmed.fa
+      - ${dirs.aa}/trimmed.colnumbering
+      - ${dirs.3di}/trimmed.fa
+      - ${dirs.3di}/trimmed.colnumbering
+
+  subset:
+    cmd: >-
+      python -m pipeline.preprocessing.subset
+      ${dirs.3di}/trimmed.fa ${dirs.aa}/trimmed.fa ${dirs.metadata}/filtered.csv
+      ${dirs.3di}/subset.fa ${dirs.aa}/subset.fa ${dirs.metadata}/subset.csv
+      --by ${subset.by}
+    desc: Select best representative per virus/variant using geometric rank
+    deps:
+      - ${dirs.3di}/trimmed.fa
+      - ${dirs.aa}/trimmed.fa
+      - ${dirs.metadata}/filtered.csv
+    params:
+      - subset.by
+    outs:
+      - ${dirs.3di}/subset.fa
+      - ${dirs.aa}/subset.fa
+      - ${dirs.metadata}/subset.csv

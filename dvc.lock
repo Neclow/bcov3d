@@ -1,0 +1,197 @@
+schema: '2.0'
+stages:
+  download_data:
+    cmd: python -m pipeline.download.download_data data/metadata/aug.csv 
+      data/metadata/variants.json data/cif data/metadata/clean.csv 
+      data/metadata/names.json --threads 16 --format cif
+    deps:
+    - path: data/metadata/aug.csv
+      hash: md5
+      md5: 7131b7cea57d5e012c707d12fa5ebd17
+      size: 168133
+    - path: data/metadata/variants.json
+      hash: md5
+      md5: 696f4be5d166cf544e64cf590f99b208
+      size: 182
+    params:
+      params.yaml:
+        threads: 16
+    outs:
+    - path: data/cif
+      hash: md5
+      md5: 0a131573d7314ac7d0d93edf4e85bd1a.dir
+      size: 2151326979
+      nfiles: 657
+    - path: data/metadata/clean.csv
+      hash: md5
+      md5: 32a75e8659da758558ee657e8c54d705
+      size: 89089
+    - path: data/metadata/names.json
+      hash: md5
+      md5: 3a8b2d39e15a0c89a81946985234fe9b
+      size: 24934
+  filter_binding_partners:
+    cmd: python -m pipeline.preprocessing.filter_metadata 
+      data/metadata/clean.csv data/metadata/filtered.csv --spike_only
+    deps:
+    - path: data/metadata/clean.csv
+      hash: md5
+      md5: b5380044c697a5637c522969ff851775
+      size: 85148
+    outs:
+    - path: data/metadata/filtered.csv
+      hash: md5
+      md5: 8b83ab6adc37e1130ca698142f4a9c5f
+      size: 42021
+  extract:
+    cmd: "python -m pipeline.preprocessing.extract_aa data/cif data/aa/fa/raw.fa data/aa/fa/chains.json
+      --threads 16\nbash pipeline/preprocessing/extract_3di.sh data/cif data/foldseek
+      data/3di/fa/raw.fa 16\n"
+    deps:
+    - path: data/cif
+      hash: md5
+      md5: 0a131573d7314ac7d0d93edf4e85bd1a.dir
+      size: 2151326979
+      nfiles: 657
+    params:
+      params.yaml:
+        threads: 16
+    outs:
+    - path: data/3di/fa/raw.fa
+      hash: md5
+      md5: 0d800072c86c7421412e69eb0a0885a6
+      size: 2734651
+    - path: data/aa/fa/chains.json
+      hash: md5
+      md5: b540cb7e09c4900f1025e95f44aabaf2
+      size: 9782
+    - path: data/aa/fa/raw.fa
+      hash: md5
+      md5: ae2e2f8b0d6fcfbd7303e5fb455f1bfa
+      size: 830756
+  clean:
+    cmd: python -m pipeline.preprocessing.clean data/3di/fa/raw.fa 
+      data/aa/fa/raw.fa data/aa/fa/chains.json data/metadata/clean.csv 
+      data/3di/fa/filtered.fa data/aa/fa/filtered.fa data/metadata/filtered.csv 
+      --spike_only --exclude_chimeric
+    deps:
+    - path: data/3di/fa/raw.fa
+      hash: md5
+      md5: 0d800072c86c7421412e69eb0a0885a6
+      size: 2734651
+    - path: data/aa/fa/chains.json
+      hash: md5
+      md5: b540cb7e09c4900f1025e95f44aabaf2
+      size: 9782
+    - path: data/aa/fa/raw.fa
+      hash: md5
+      md5: ae2e2f8b0d6fcfbd7303e5fb455f1bfa
+      size: 830756
+    - path: data/metadata/clean.csv
+      hash: md5
+      md5: 32a75e8659da758558ee657e8c54d705
+      size: 89089
+    outs:
+    - path: data/3di/fa/filtered.fa
+      hash: md5
+      md5: 6b3c11c8a75dcf7ecca66fd3358c6cc4
+      size: 340506
+    - path: data/aa/fa/filtered.fa
+      hash: md5
+      md5: 73e126c8aca7dfc249fd7ce511c8fac2
+      size: 408298
+    - path: data/metadata/filtered.csv
+      hash: md5
+      md5: 121078712db04961f022db58b17cb25a
+      size: 42060
+  align:
+    cmd: "ginsi --leavegappyregion --thread 16 --maxiterate 1000 data/aa/fa/filtered.fa
+      > data/aa/fa/aligned.fa\npixi run famsa3di -t 16 data/3di/fa/filtered.fa data/3di/fa/aligned.fa\n"
+    deps:
+    - path: data/3di/fa/filtered.fa
+      hash: md5
+      md5: 6b3c11c8a75dcf7ecca66fd3358c6cc4
+      size: 340506
+    - path: data/aa/fa/filtered.fa
+      hash: md5
+      md5: 73e126c8aca7dfc249fd7ce511c8fac2
+      size: 408298
+    params:
+      params.yaml:
+        mafft.maxiterate: 1000
+        threads: 16
+    outs:
+    - path: data/3di/fa/aligned.fa
+      hash: md5
+      md5: 5d5702bf656596bd93e919019366e72d
+      size: 560960
+    - path: data/aa/fa/aligned.fa
+      hash: md5
+      md5: a9f57c84b478c261dd4de5fe0448deaa
+      size: 580800
+  trim:
+    cmd: "trimal -in data/aa/fa/aligned.fa -out data/aa/fa/trimmed.fa -gt 0.35 -colnumbering
+      > data/aa/fa/trimmed.colnumbering\ntrimal -in data/3di/fa/aligned.fa -out data/3di/fa/trimmed.fa
+      -gt 0.35 -colnumbering > data/3di/fa/trimmed.colnumbering\n"
+    deps:
+    - path: data/3di/fa/aligned.fa
+      hash: md5
+      md5: 5d5702bf656596bd93e919019366e72d
+      size: 560960
+    - path: data/aa/fa/aligned.fa
+      hash: md5
+      md5: a9f57c84b478c261dd4de5fe0448deaa
+      size: 580800
+    params:
+      params.yaml:
+        trimal.gt: 0.35
+    outs:
+    - path: data/3di/fa/trimmed.colnumbering
+      hash: md5
+      md5: 8a7b091d427ca9a0a25cebdbefb8b4cf
+      size: 5893
+    - path: data/3di/fa/trimmed.fa
+      hash: md5
+      md5: ad292c3bc867d80719cb5de0e84b9a74
+      size: 355200
+    - path: data/aa/fa/trimmed.colnumbering
+      hash: md5
+      md5: 49b1c800d8080ec867a1a4c84ae48443
+      size: 7041
+    - path: data/aa/fa/trimmed.fa
+      hash: md5
+      md5: bd531572bddbd2a9460d8a9c33b8fd39
+      size: 420160
+  subset:
+    cmd: python -m pipeline.preprocessing.subset data/3di/fa/trimmed.fa 
+      data/aa/fa/trimmed.fa data/metadata/filtered.csv data/3di/fa/subset.fa 
+      data/aa/fa/subset.fa data/metadata/subset.csv --by Virus,MajorVariant
+    deps:
+    - path: data/3di/fa/trimmed.fa
+      hash: md5
+      md5: ad292c3bc867d80719cb5de0e84b9a74
+      size: 355200
+    - path: data/aa/fa/trimmed.fa
+      hash: md5
+      md5: bd531572bddbd2a9460d8a9c33b8fd39
+      size: 420160
+    - path: data/metadata/filtered.csv
+      hash: md5
+      md5: 121078712db04961f022db58b17cb25a
+      size: 42060
+    params:
+      params.yaml:
+        subset.by: Virus,MajorVariant
+    outs:
+    - path: data/3di/fa/subset.fa
+      hash: md5
+      md5: 387c9720f6801dbd0148eb0390963b6b
+      size: 40404
+    - path: data/aa/fa/subset.fa
+      hash: md5
+      md5: 2c4f6c4d5aa5eb3d1f951190af02f482
+      size: 47804
+    - path: data/metadata/subset.csv
+      hash: md5
+      md5: 1fc00dc7d9c2fb4a0193fcf4fbd1cf6d
+      size: 7123

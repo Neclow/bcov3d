@@ -1,0 +1,28 @@
+# Shared paths — used by DVC, Python, and R
+dirs:
+  root: data
+  metadata: data/metadata
+  cif: data/cif
+  aa: data/aa/fa
+  3di: data/3di/fa
+  models: data/models
+  foldseek: data/foldseek
+  domains: data/domains
+  brms: data/brms
+  img: img
+
+# General
+threads: 16
+seed: 42
+
+# Alignment
+mafft:
+  maxiterate: 1000
+
+# Trimming
+trimal:
+  gt: 0.35
+
+# Subset
+subset:
+  by: Virus,MajorVariant

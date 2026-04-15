@@ -1,8 +1,10 @@
-/raw.fa
 /clean.fa
+/cleandiff.json
+/chains.json
 /aligned.fa
 /trimmed.fa
 /trimmed.colnumbering
 /intersect.fa
+/raw.fa
 /filtered.fa
 /subset.fa

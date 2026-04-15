@@ -1,127 +1,87 @@
-"""Sample a subset of sequences from two FASTA files and write them to separate output files."""
+"""Select one representative structure per virus/variant group.
 
-import os
+Uses a geometric mean rank across resolution, 3DI sequence length, and
+wwPDB model quality percentiles to pick the best representative.
+"""
 
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
-from pathlib import Path
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 import pandas as pd
-
-from src.fasta import pgap, filter_taxa, filter_sites, unalign
-
-MAX_CHARS = {
-    "dna": 4,
-    "rna": 4,
-    "aa": 20,
-    "3di": 20,
-}
+from Bio import SeqIO
+from scipy.stats import gmean
 
 
 def parse_args():
     parser = ArgumentParser(
-        description=(
-            "Sample a subset of sequences from two FASTA files "
-            "and write them to separate output files."
-        ),
+        description="Select best representative per virus/variant group.",
         formatter_class=ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "n", type=int, help="Number of sequences to sample from each input file"
-    )
-    parser.add_argument("input1", help="First input FASTA file")
-    parser.add_argument("input2", help="Second input FASTA file")
-    parser.add_argument("metadata", help="Metadata file (.csv)")
-    # parser.add_argument("output1", help="Output FASTA file for sequences from input1")
-    # parser.add_argument("output2", help="Output FASTA file for sequences from input2")
+    parser.add_argument("filtered_3di", help="Filtered 3DI FASTA.")
+    parser.add_argument("filtered_aa", help="Filtered AA FASTA.")
+    parser.add_argument("metadata", help="Filtered metadata CSV.")
+
+    parser.add_argument("out_3di", help="Output subset 3DI FASTA.")
+    parser.add_argument("out_aa", help="Output subset AA FASTA.")
+    parser.add_argument("out_metadata", help="Output subset metadata CSV.")
+
     parser.add_argument(
         "--by",
         default="Virus,MajorVariant",
-        help="Comma-separated column name(s) to group by in the metadata file",
-    )
-    parser.add_argument(
-        "--col",
-        default="PDB",
-        help="Column name for sequence IDs in the metadata file",
-    )
-    parser.add_argument(
-        "--filtersites",
-        type=int,
-        help="Filter out highly variable sites in the sequences before sampling",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed for reproducibility (used with --random)",
-    )
-    parser.add_argument(
-        "--dtype",
-        type=str,
-        default="aa",
-        choices=("dna", "rna", "aa", "3di"),
-        help="Type of sequences in the input files",
+        help="Comma-separated columns to group by for selection.",
     )
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
+    group_cols = [c.strip() for c in args.by.split(",")]
 
-    start_df = pd.read_csv(args.metadata).set_index(args.col)
+    meta = pd.read_csv(args.metadata)
 
-    # Calculate the proportion of gaps in each sequence
-    start_df["pgap1"] = pgap(args.input1)
-    start_df["pgap2"] = pgap(args.input2)
-    start_df["mpgap"] = start_df[["pgap1", "pgap2"]].mean(axis=1)
-    start_df["has_receptor_or_antibody"] = (
-        start_df["Receptor/Other"].notna() | start_df["Antibody"].notna()
-    )
+    # Get 3DI lengths
+    tdi_lens = {r.id: len(r.seq) for r in SeqIO.parse(args.filtered_3di, "fasta")}
+    meta["3di_len"] = meta["PDB"].map(tdi_lens)
 
-    start_df.dropna(subset=["mpgap"], inplace=True)
+    # Mean validation percentile
+    pct_cols = ["percentile_clashscore", "percentile_rama", "percentile_rota"]
+    meta["mean_percentile"] = meta[pct_cols].mean(axis=1)
 
-    # Sort by absence of receptor + structure resolution
-    start_df.sort_values(
-        by=["has_receptor_or_antibody", "Resolution"],
-        ascending=True,
-        inplace=True,
-    )
-    # elif args.random:
-    #     # Shuffle the DataFrame
-    #     start_df.sample(frac=1, random_state=args.seed, inplace=True)
+    # Global ranks (lower = better)
+    meta["rank_resolution"] = meta["Resolution"].rank(ascending=True)
+    meta["rank_3di_len"] = meta["3di_len"].rank(ascending=False)
+    meta["rank_percentile"] = meta["mean_percentile"].rank(ascending=False)
 
-    subset_df = start_df.groupby(args.by.split(","), sort=False, dropna=False).head(
-        args.n
-    )
+    rank_cols = ["rank_resolution", "rank_3di_len", "rank_percentile"]
+    meta["geo_rank"] = gmean(meta[rank_cols], axis=1)
 
-    # Save the subset metadata to a CSV file
-    subset_df.to_csv(Path(args.metadata).parent / f"subset{args.n}.csv")
+    # Select best (lowest geo_rank) per group
+    best = meta.sort_values("geo_rank").groupby(group_cols).first().reset_index()
+    selected_pdbs = set(best["PDB"])
 
-    # Filter sequences from both input files
-    ids_to_sample = subset_df.index.tolist()
-    dir1 = os.path.dirname(args.input1)
-    dir2 = os.path.dirname(args.input2)
-    output1 = f"{dir1}/subset{args.n}.fa"
-    output2 = f"{dir2}/subset{args.n}.fa"
-    filter_taxa(args.input1, output1, ids_to_sample)
-    filter_taxa(args.input2, output2, ids_to_sample)
-    if args.filtersites is not None:
-        assert 1 < args.filtersites <= MAX_CHARS[args.dtype]
-        filter_sites(
-            output1,
-            output1,
-            colfile=f"{dir1}/subset{args.n}.colnumbering",
-            max_unique=args.filtersites,
-        )
-        filter_sites(
-            output2,
-            output2,
-            colfile=f"{dir2}/subset{args.n}.colnumbering",
-            max_unique=args.filtersites,
-        )
+    print(f"Selected: {len(best)} structures from {best['Virus'].nunique()} viruses")
+    print(f"Grouped by: {group_cols}")
 
-    print(f"(subset) Remaining sequences: {len(ids_to_sample)}")
+    # Write outputs
+    aa_records = SeqIO.to_dict(SeqIO.parse(args.filtered_aa, "fasta"))
+    tdi_records = SeqIO.to_dict(SeqIO.parse(args.filtered_3di, "fasta"))
 
-    stem1, ext1 = os.path.splitext(output1)
-    unalign(output1, f"{stem1}_unaligned{ext1}", f"{stem1}_gaps.json")
-    stem2, ext2 = os.path.splitext(output2)
-    unalign(output2, f"{stem2}_unaligned{ext2}", f"{stem2}_gaps.json")
+    with open(args.out_aa, "w", encoding="utf-8") as f:
+        for pdb in sorted(selected_pdbs):
+            if pdb in aa_records:
+                f.write(f">{pdb}\n{aa_records[pdb].seq}\n")
+
+    with open(args.out_3di, "w", encoding="utf-8") as f:
+        for pdb in sorted(selected_pdbs):
+            if pdb in tdi_records:
+                f.write(f">{pdb}\n{tdi_records[pdb].seq}\n")
+
+    best.to_csv(args.out_metadata, index=False)
+
+    # Summary
+    for _, row in best.sort_values("geo_rank").iterrows():
+        group = "/".join(str(row[c]) for c in group_cols)
+        print(f"  {row['PDB']}  {group:40s}  res={row['Resolution']:.2f}  3di={row['3di_len']:4.0f}  pct={row['mean_percentile']:5.1f}  rank={row['geo_rank']:.1f}")
+
+
+if __name__ == "__main__":
+    main()

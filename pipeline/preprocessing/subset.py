@@ -1,7 +1,7 @@
 """Select one representative structure per virus/variant group.
 
-Uses a geometric mean rank across resolution, 3DI sequence length, and
-wwPDB model quality percentiles to pick the best representative.
+Uses a geometric mean rank across resolution, 3DI completeness (gap fraction),
+and wwPDB model quality percentiles to pick the best representative.
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -16,8 +16,8 @@ def parse_args():
         description="Select best representative per virus/variant group.",
         formatter_class=ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("filtered_3di", help="Filtered 3DI FASTA.")
-    parser.add_argument("filtered_aa", help="Filtered AA FASTA.")
+    parser.add_argument("filtered_3di", help="Filtered 3DI FASTA (trimmed).")
+    parser.add_argument("filtered_aa", help="Filtered AA FASTA (trimmed).")
     parser.add_argument("metadata", help="Filtered metadata CSV.")
 
     parser.add_argument("out_3di", help="Output subset 3DI FASTA.")
@@ -38,9 +38,12 @@ def main():
 
     meta = pd.read_csv(args.metadata)
 
-    # Get 3DI lengths
-    tdi_lens = {r.id: len(r.seq) for r in SeqIO.parse(args.filtered_3di, "fasta")}
-    meta["3di_len"] = meta["PDB"].map(tdi_lens)
+    # Gap fraction in trimmed 3DI (fewer gaps = more complete)
+    tdi_gaps = {}
+    for r in SeqIO.parse(args.filtered_3di, "fasta"):
+        seq = str(r.seq)
+        tdi_gaps[r.id] = seq.count("-") / len(seq) if len(seq) > 0 else 1.0
+    meta["3di_gap_frac"] = meta["PDB"].map(tdi_gaps)
 
     # Mean validation percentile
     pct_cols = ["percentile_clashscore", "percentile_rama", "percentile_rota"]
@@ -48,10 +51,10 @@ def main():
 
     # Global ranks (lower = better)
     meta["rank_resolution"] = meta["Resolution"].rank(ascending=True)
-    meta["rank_3di_len"] = meta["3di_len"].rank(ascending=False)
+    meta["rank_3di_gaps"] = meta["3di_gap_frac"].rank(ascending=True)
     meta["rank_percentile"] = meta["mean_percentile"].rank(ascending=False)
 
-    rank_cols = ["rank_resolution", "rank_3di_len", "rank_percentile"]
+    rank_cols = ["rank_resolution", "rank_3di_gaps", "rank_percentile"]
     meta["geo_rank"] = gmean(meta[rank_cols], axis=1)
 
     # Select best (lowest geo_rank) per group
@@ -80,7 +83,13 @@ def main():
     # Summary
     for _, row in best.sort_values("geo_rank").iterrows():
         group = "/".join(str(row[c]) for c in group_cols)
-        print(f"  {row['PDB']}  {group:40s}  res={row['Resolution']:.2f}  3di={row['3di_len']:4.0f}  pct={row['mean_percentile']:5.1f}  rank={row['geo_rank']:.1f}")
+        print(
+            f"  {row['PDB']}  {group:40s}  "
+            f"res={row['Resolution']:.2f}  "
+            f"gaps={row['3di_gap_frac']:.1%}  "
+            f"pct={row['mean_percentile']:5.1f}  "
+            f"rank={row['geo_rank']:.1f}"
+        )
 
 
 if __name__ == "__main__":

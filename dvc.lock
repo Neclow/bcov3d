@@ -185,13 +185,13 @@ stages:
     outs:
     - path: data/3di/fa/subset.fa
       hash: md5
-      md5: 387c9720f6801dbd0148eb0390963b6b
+      md5: 3bb5ef4c18a4b11e0b425ee7f0f618c8
       size: 40404
     - path: data/aa/fa/subset.fa
       hash: md5
-      md5: 2c4f6c4d5aa5eb3d1f951190af02f482
+      md5: 8f6ff39b5f93509c14862cef26aa99ad
       size: 47804
     - path: data/metadata/subset.csv
       hash: md5
-      md5: 1fc00dc7d9c2fb4a0193fcf4fbd1cf6d
-      size: 7123
+      md5: 9ba00a674514b95b79567408fce0087a
+      size: 7687

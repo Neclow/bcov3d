@@ -289,3 +289,8 @@ VK23*
 # Notes
 notes/
 papers/
+notebooks/
+
+# CLAUDE
+.claude/
+CLAUDE.md

@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument("out_3di", help="Output subset 3DI FASTA.")
     parser.add_argument("out_aa", help="Output subset AA FASTA.")
     parser.add_argument("out_metadata", help="Output subset metadata CSV.")
+    parser.add_argument("out_ranked", help="Output full ranked metadata CSV (all candidates).")
 
     parser.add_argument(
         "--by",
@@ -45,17 +46,14 @@ def main():
         tdi_gaps[r.id] = seq.count("-") / len(seq) if len(seq) > 0 else 1.0
     meta["3di_gap_frac"] = meta["PDB"].map(tdi_gaps)
 
-    # Mean validation percentile
-    pct_cols = ["percentile_clashscore", "percentile_rama", "percentile_rota"]
-    meta["mean_percentile"] = meta[pct_cols].mean(axis=1)
+    # Geometric mean rank across quality metrics (lower = better for all)
+    # NaN clashscores (wwPDB software issue) are skipped, not penalised
+    quality_cols = ["Resolution", "clashscore", "rama_outliers", "rota_outliers", "3di_gap_frac"]
+    ranks = meta[quality_cols].rank()
+    meta["geo_rank"] = ranks.apply(lambda r: gmean(r.dropna()), axis=1)
 
-    # Global ranks (lower = better)
-    meta["rank_resolution"] = meta["Resolution"].rank(ascending=True)
-    meta["rank_3di_gaps"] = meta["3di_gap_frac"].rank(ascending=True)
-    meta["rank_percentile"] = meta["mean_percentile"].rank(ascending=False)
-
-    rank_cols = ["rank_resolution", "rank_3di_gaps", "rank_percentile"]
-    meta["geo_rank"] = gmean(meta[rank_cols], axis=1)
+    # Save full ranked metadata
+    meta.sort_values("geo_rank").to_csv(args.out_ranked, index=False)
 
     # Select best (lowest geo_rank) per group
     best = meta.sort_values("geo_rank").groupby(group_cols).first().reset_index()
@@ -86,8 +84,10 @@ def main():
         print(
             f"  {row['PDB']}  {group:40s}  "
             f"res={row['Resolution']:.2f}  "
+            f"clash={row['clashscore']:.1f}  "
+            f"rama={row['rama_outliers']:.2f}  "
+            f"rota={row['rota_outliers']:.2f}  "
             f"gaps={row['3di_gap_frac']:.1%}  "
-            f"pct={row['mean_percentile']:5.1f}  "
             f"rank={row['geo_rank']:.1f}"
         )
 

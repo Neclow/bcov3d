@@ -45,8 +45,8 @@ def parse_args():
     parser.add_argument(
         "--min_3di_len",
         type=int,
-        default=800,
-        help="Minimum 3DI sequence length. Shorter = incomplete foldseek output.",
+        default=838,
+        help="Minimum 3DI sequence length (80%% of median ectodomain length).",
     )
     return parser.parse_args()
 

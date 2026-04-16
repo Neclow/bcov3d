@@ -8,6 +8,8 @@ m=$3
 seed=$4
 threads=$5
 
+mkdir -p "$treecutdir"
+
 # Basic IQ-TREE runs
 files="${facutdir}/*.fa"
 for s in $files; do

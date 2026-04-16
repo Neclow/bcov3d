@@ -137,8 +137,10 @@ stages:
       - threads
     outs:
       - ${dirs.3di_trees}/base.iqtree
+      - ${dirs.3di_trees}/base.treefile
       - ${dirs.3di_trees}/best_model.txt
       - ${dirs.aa_trees}/base.iqtree
+      - ${dirs.aa_trees}/base.treefile
       - ${dirs.aa_trees}/best_model.txt
 
   iqtree_cut:
@@ -180,9 +182,15 @@ stages:
     outs:
       - ${dirs.3di_trees}/mast
       - ${dirs.3di_trees}/mast.csv
+      - ${dirs.3di_trees}/mast_start.iqtree
+      - ${dirs.3di_trees}/mast_start.sitelh
+      - ${dirs.3di_trees}/mast_start.treefile
       - ${dirs.3di_trees}/cut.trees.sorted
       - ${dirs.aa_trees}/mast
       - ${dirs.aa_trees}/mast.csv
+      - ${dirs.aa_trees}/mast_start.iqtree
+      - ${dirs.aa_trees}/mast_start.sitelh
+      - ${dirs.aa_trees}/mast_start.treefile
       - ${dirs.aa_trees}/cut.trees.sorted
 
   download_interproscan_data:

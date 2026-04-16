@@ -262,6 +262,10 @@ stages:
       hash: md5
       md5: b3d298d03710f62330ba764126a4f14d
       size: 11991
+    - path: data/3di/trees/base.treefile
+      hash: md5
+      md5: 5f3f7146ed8ac8cb2562717514928a03
+      size: 1179
     - path: data/3di/trees/best_model.txt
       hash: md5
       md5: dbb699fd020e03d7751b7e77f19d99b0
@@ -270,6 +274,10 @@ stages:
       hash: md5
       md5: 4e37b7d1c599802b7ac5cba75a814eb2
       size: 30709
+    - path: data/aa/trees/base.treefile
+      hash: md5
+      md5: 04ffcd060a3d1d8c08f52dc06e8e5664
+      size: 1179
     - path: data/aa/trees/best_model.txt
       hash: md5
       md5: 155e45338cce6f1c51aef71aa7943ee4
@@ -379,6 +387,18 @@ stages:
       hash: md5
       md5: 6e21a1d4e851a95225660e2d7e7da8c6
       size: 224
+    - path: data/3di/trees/mast_start.iqtree
+      hash: md5
+      md5: d68acb1219efcb2f0dcc0da491eecdc3
+      size: 3073
+    - path: data/3di/trees/mast_start.sitelh
+      hash: md5
+      md5: 74225bc0161e7a57e474570b725248a9
+      size: 82259
+    - path: data/3di/trees/mast_start.treefile
+      hash: md5
+      md5: 9ad69b1e59bcd704d30555b42581fc27
+      size: 8253
     - path: data/aa/trees/cut.trees.sorted
       hash: md5
       md5: 87d13fb82857e91b82df2e8b91eac1cf
@@ -392,6 +412,18 @@ stages:
       hash: md5
       md5: 629b29cd0d5ff78ac56eb53fdf11ede6
       size: 259
+    - path: data/aa/trees/mast_start.iqtree
+      hash: md5
+      md5: 2c6c69c2272a3464bb4210d44834ad4c
+      size: 3152
+    - path: data/aa/trees/mast_start.sitelh
+      hash: md5
+      md5: 262d79e36c096554430eeefc05807aac
+      size: 108173
+    - path: data/aa/trees/mast_start.treefile
+      hash: md5
+      md5: d1c145dd60687035fabe17e9ee14cc01
+      size: 9432
   download_interproscan_data:
     cmd: curl -O 
       http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.77-108.0/alt/interproscan-data-5.77-108.0.tar.gz
@@ -466,3 +498,11 @@ stages:
       hash: md5
       md5: 1a7b949aff428c9b16ae36b4882b5ee3
       size: 89297
+  download_models:
+    cmd: bash pipeline/download/download_models.sh
+    outs:
+    - path: data/models
+      hash: md5
+      md5: d00908f406bc4f02944a9a06783a5437.dir
+      size: 8179
+      nfiles: 4

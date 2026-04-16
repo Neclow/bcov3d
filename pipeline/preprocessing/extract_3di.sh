@@ -25,3 +25,4 @@ mkdir -p "${FOLDSEEK_DIR}"
 foldseek createdb "${CIF_DIR}" "${FOLDSEEK_DIR}/3di_raw.db" -v 3 --threads "${THREADS}"
 foldseek lndb "${FOLDSEEK_DIR}/3di_raw.db_h" "${FOLDSEEK_DIR}/3di_raw.db_ss_h" -v 3
 foldseek convert2fasta "${FOLDSEEK_DIR}/3di_raw.db_ss" "${OUTPUT_FA}" -v 3
+foldseek convert2fasta "${FOLDSEEK_DIR}/3di_raw.db" "${FOLDSEEK_DIR}/aa_foldseek.fa" -v 3

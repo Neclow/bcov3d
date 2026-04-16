@@ -35,13 +35,15 @@ stages:
       python -m pipeline.preprocessing.clean
       ${dirs.3di}/raw.fa ${dirs.aa}/raw.fa ${dirs.aa}/chains.json ${dirs.metadata}/clean.csv
       ${dirs.3di}/filtered.fa ${dirs.aa}/filtered.fa ${dirs.metadata}/filtered.csv
-      --spike_only --exclude_chimeric
+      --spike_only --exclude_chimeric --min_3di_len ${clean.min_3di_len}
     desc: Match 3DI to spike chains, filter by binding partners and chimeric constructs
     deps:
       - ${dirs.3di}/raw.fa
       - ${dirs.aa}/raw.fa
       - ${dirs.aa}/chains.json
       - ${dirs.metadata}/clean.csv
+    params:
+      - clean.min_3di_len
     outs:
       - ${dirs.3di}/filtered.fa
       - ${dirs.aa}/filtered.fa
@@ -83,7 +85,7 @@ stages:
       python -m pipeline.preprocessing.subset
       ${dirs.3di}/trimmed.fa ${dirs.aa}/trimmed.fa ${dirs.metadata}/filtered.csv
       ${dirs.3di}/subset.fa ${dirs.aa}/subset.fa ${dirs.metadata}/subset.csv
-      --by ${subset.by}
+      ${dirs.metadata}/ranked.csv --by ${subset.by}
     desc: Select best representative per virus/variant using geometric rank
     deps:
       - ${dirs.3di}/trimmed.fa
@@ -95,3 +97,134 @@ stages:
       - ${dirs.3di}/subset.fa
       - ${dirs.aa}/subset.fa
       - ${dirs.metadata}/subset.csv
+      - ${dirs.metadata}/ranked.csv
+
+  download_models:
+    cmd: bash pipeline/download/download_models.sh
+    desc: Download 3DI substitution matrices and create symlinks for IQ-TREE
+    outs:
+      - ${dirs.models}
+
+  cut:
+    cmd: |
+      python -m pipeline.modelling.cut ${dirs.3di}/subset.fa ${cut.min_size}
+      python -m pipeline.modelling.cut ${dirs.aa}/subset.fa ${cut.min_size}
+    desc: Partition AA and 3DI subset alignments into chunks for per-region tree inference
+    deps:
+      - ${dirs.3di}/subset.fa
+      - ${dirs.aa}/subset.fa
+    params:
+      - cut.min_size
+    outs:
+      - ${dirs.3di}/cut/subset
+      - ${dirs.aa}/cut/subset
+
+  iqtree_base:
+    cmd: |
+      bash pipeline/modelling/iqtree_base.sh ${dirs.3di}/subset.fa ${dirs.3di_trees}/base ${iqtree.mset_3di} ${iqtree.mfreq} ${iqtree.mrate} ${seed} ${threads}
+      bash pipeline/modelling/iqtree_base.sh ${dirs.aa}/subset.fa ${dirs.aa_trees}/base ${iqtree.mset_aa} ${iqtree.mfreq} ${iqtree.mrate} ${seed} ${threads}
+    desc: Run ModelFinder to select best substitution model for AA and 3DI
+    deps:
+      - ${dirs.3di}/subset.fa
+      - ${dirs.aa}/subset.fa
+      - ${dirs.models}
+    params:
+      - iqtree.mset_3di
+      - iqtree.mset_aa
+      - iqtree.mfreq
+      - iqtree.mrate
+      - seed
+      - threads
+    outs:
+      - ${dirs.3di_trees}/base.iqtree
+      - ${dirs.3di_trees}/best_model.txt
+      - ${dirs.aa_trees}/base.iqtree
+      - ${dirs.aa_trees}/best_model.txt
+
+  iqtree_cut:
+    cmd: |
+      bash pipeline/modelling/iqtree_cut.sh ${dirs.3di}/cut/subset ${dirs.3di_trees}/cut "$(cat ${dirs.3di_trees}/best_model.txt)" ${seed} ${threads}
+      bash pipeline/modelling/iqtree_cut.sh ${dirs.aa}/cut/subset ${dirs.aa_trees}/cut "$(cat ${dirs.aa_trees}/best_model.txt)" ${seed} ${threads}
+    desc: Run IQ-TREE on each alignment chunk with best model, concatenate trees
+    deps:
+      - ${dirs.3di}/cut/subset
+      - ${dirs.aa}/cut/subset
+      - ${dirs.3di_trees}/best_model.txt
+      - ${dirs.aa_trees}/best_model.txt
+      - ${dirs.models}
+    params:
+      - seed
+      - threads
+    outs:
+      - ${dirs.3di_trees}/cut
+      - ${dirs.3di_trees}/cut.trees
+      - ${dirs.aa_trees}/cut
+      - ${dirs.aa_trees}/cut.trees
+
+  mast:
+    cmd: |
+      bash pipeline/modelling/mast.sh ${dirs.3di}/subset.fa "$(cat ${dirs.3di_trees}/best_model.txt)" ${dirs.3di_trees}/cut.trees ${dirs.3di_trees}/mast ${seed} ${threads} BIC
+      bash pipeline/modelling/mast.sh ${dirs.aa}/subset.fa "$(cat ${dirs.aa_trees}/best_model.txt)" ${dirs.aa_trees}/cut.trees ${dirs.aa_trees}/mast ${seed} ${threads} BIC
+    desc: Run MAST (initial + sort + iterative) to find optimal number of tree classes
+    deps:
+      - ${dirs.3di}/subset.fa
+      - ${dirs.aa}/subset.fa
+      - ${dirs.3di_trees}/cut.trees
+      - ${dirs.aa_trees}/cut.trees
+      - ${dirs.3di_trees}/best_model.txt
+      - ${dirs.aa_trees}/best_model.txt
+      - ${dirs.models}
+    params:
+      - seed
+      - threads
+    outs:
+      - ${dirs.3di_trees}/mast
+      - ${dirs.3di_trees}/mast.csv
+      - ${dirs.3di_trees}/cut.trees.sorted
+      - ${dirs.aa_trees}/mast
+      - ${dirs.aa_trees}/mast.csv
+      - ${dirs.aa_trees}/cut.trees.sorted
+
+  download_interproscan_data:
+    cmd: >-
+      curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/${interproscan.version}/alt/interproscan-data-${interproscan.version}.tar.gz
+      && curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/${interproscan.version}/alt/interproscan-data-${interproscan.version}.tar.gz.md5
+      && md5sum -c interproscan-data-${interproscan.version}.tar.gz.md5
+      && tar -pxzf interproscan-data-${interproscan.version}.tar.gz -C ${dirs.root}
+      && rm interproscan-data-${interproscan.version}.tar.gz interproscan-data-${interproscan.version}.tar.gz.md5
+    desc: Download InterProScan HMM databases for Docker
+    params:
+      - interproscan.version
+    outs:
+      - ${dirs.root}/interproscan-${interproscan.version}/data
+
+  extract_domains:
+    cmd: >-
+      bash pipeline/preprocessing/extract_domains.sh
+      ${dirs.aa}/filtered.fa ${dirs.domains}/interproscan.tsv ${interproscan.version}
+    desc: Run InterProScan via Docker to extract protein domain annotations
+    deps:
+      - ${dirs.aa}/filtered.fa
+      - ${dirs.root}/interproscan-${interproscan.version}/data
+    params:
+      - interproscan.version
+    outs:
+      - ${dirs.domains}/interproscan.tsv
+
+  convert_domain_coords:
+    cmd: >-
+      python -m pipeline.preprocessing.convert_domain_coords
+      ${dirs.domains}/interproscan.tsv ${dirs.aa}/filtered.fa
+      ${dirs.foldseek}/aa_foldseek.fa ${dirs.aa}/chains.json
+      ${dirs.aa}/subset.fa ${dirs.3di}/subset.fa
+      ${dirs.domains}/domains.tsv
+    desc: Map InterProScan domain coords to AA and 3DI subset alignment space
+    deps:
+      - ${dirs.domains}/interproscan.tsv
+      - ${dirs.aa}/filtered.fa
+      - ${dirs.foldseek}/aa_foldseek.fa
+      - ${dirs.aa}/chains.json
+      - ${dirs.aa}/subset.fa
+      - ${dirs.3di}/subset.fa
+    outs:
+      - ${dirs.domains}/domains.tsv

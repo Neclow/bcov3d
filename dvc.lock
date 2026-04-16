@@ -73,7 +73,7 @@ stages:
     cmd: python -m pipeline.preprocessing.clean data/3di/fa/raw.fa 
       data/aa/fa/raw.fa data/aa/fa/chains.json data/metadata/clean.csv 
       data/3di/fa/filtered.fa data/aa/fa/filtered.fa data/metadata/filtered.csv 
-      --spike_only --exclude_chimeric
+      --spike_only --exclude_chimeric --min_3di_len 838
     deps:
     - path: data/3di/fa/raw.fa
       hash: md5
@@ -91,31 +91,34 @@ stages:
       hash: md5
       md5: 32a75e8659da758558ee657e8c54d705
       size: 89089
+    params:
+      params.yaml:
+        clean.min_3di_len: 838
     outs:
     - path: data/3di/fa/filtered.fa
       hash: md5
-      md5: 6b3c11c8a75dcf7ecca66fd3358c6cc4
-      size: 340506
+      md5: cc1144926034b0eeaadd10e553319e0f
+      size: 338839
     - path: data/aa/fa/filtered.fa
       hash: md5
-      md5: 73e126c8aca7dfc249fd7ce511c8fac2
-      size: 408298
+      md5: a5fe53addac488d593e0da94d13fa4e0
+      size: 405712
     - path: data/metadata/filtered.csv
       hash: md5
-      md5: 121078712db04961f022db58b17cb25a
-      size: 42060
+      md5: 3a0625333e0eca08ed8cc99b3e8aaae9
+      size: 41788
   align:
     cmd: "ginsi --leavegappyregion --thread 16 --maxiterate 1000 data/aa/fa/filtered.fa
       > data/aa/fa/aligned.fa\npixi run famsa3di -t 16 data/3di/fa/filtered.fa data/3di/fa/aligned.fa\n"
     deps:
     - path: data/3di/fa/filtered.fa
       hash: md5
-      md5: 6b3c11c8a75dcf7ecca66fd3358c6cc4
-      size: 340506
+      md5: cc1144926034b0eeaadd10e553319e0f
+      size: 338839
     - path: data/aa/fa/filtered.fa
       hash: md5
-      md5: 73e126c8aca7dfc249fd7ce511c8fac2
-      size: 408298
+      md5: a5fe53addac488d593e0da94d13fa4e0
+      size: 405712
     params:
       params.yaml:
         mafft.maxiterate: 1000
@@ -123,12 +126,12 @@ stages:
     outs:
     - path: data/3di/fa/aligned.fa
       hash: md5
-      md5: 5d5702bf656596bd93e919019366e72d
-      size: 560960
+      md5: e94390b5bc14c60933d659406e386e1f
+      size: 551412
     - path: data/aa/fa/aligned.fa
       hash: md5
-      md5: a9f57c84b478c261dd4de5fe0448deaa
-      size: 580800
+      md5: e54d944682dd9084fc4d342e4a200b15
+      size: 574308
   trim:
     cmd: "trimal -in data/aa/fa/aligned.fa -out data/aa/fa/trimmed.fa -gt 0.35 -colnumbering
       > data/aa/fa/trimmed.colnumbering\ntrimal -in data/3di/fa/aligned.fa -out data/3di/fa/trimmed.fa
@@ -136,62 +139,330 @@ stages:
     deps:
     - path: data/3di/fa/aligned.fa
       hash: md5
-      md5: 5d5702bf656596bd93e919019366e72d
-      size: 560960
+      md5: e94390b5bc14c60933d659406e386e1f
+      size: 551412
     - path: data/aa/fa/aligned.fa
       hash: md5
-      md5: a9f57c84b478c261dd4de5fe0448deaa
-      size: 580800
+      md5: e54d944682dd9084fc4d342e4a200b15
+      size: 574308
     params:
       params.yaml:
         trimal.gt: 0.35
     outs:
     - path: data/3di/fa/trimmed.colnumbering
       hash: md5
-      md5: 8a7b091d427ca9a0a25cebdbefb8b4cf
-      size: 5893
+      md5: a98780422514a2fc1fe2008058fe77eb
+      size: 5894
     - path: data/3di/fa/trimmed.fa
       hash: md5
-      md5: ad292c3bc867d80719cb5de0e84b9a74
-      size: 355200
+      md5: 9bac989d92aaeee17ff8d4b4f1cbe845
+      size: 353298
     - path: data/aa/fa/trimmed.colnumbering
       hash: md5
-      md5: 49b1c800d8080ec867a1a4c84ae48443
-      size: 7041
+      md5: 70b805f2a6c89b1f7ddccbfb44d7460c
+      size: 7032
     - path: data/aa/fa/trimmed.fa
       hash: md5
-      md5: bd531572bddbd2a9460d8a9c33b8fd39
-      size: 420160
+      md5: e23d353c653ee711427e0672b2755994
+      size: 417534
   subset:
     cmd: python -m pipeline.preprocessing.subset data/3di/fa/trimmed.fa 
       data/aa/fa/trimmed.fa data/metadata/filtered.csv data/3di/fa/subset.fa 
-      data/aa/fa/subset.fa data/metadata/subset.csv --by Virus,MajorVariant
+      data/aa/fa/subset.fa data/metadata/subset.csv data/metadata/ranked.csv 
+      --by Virus,MajorVariant
     deps:
     - path: data/3di/fa/trimmed.fa
       hash: md5
-      md5: ad292c3bc867d80719cb5de0e84b9a74
-      size: 355200
+      md5: 9bac989d92aaeee17ff8d4b4f1cbe845
+      size: 353298
     - path: data/aa/fa/trimmed.fa
       hash: md5
-      md5: bd531572bddbd2a9460d8a9c33b8fd39
-      size: 420160
+      md5: e23d353c653ee711427e0672b2755994
+      size: 417534
     - path: data/metadata/filtered.csv
       hash: md5
-      md5: 121078712db04961f022db58b17cb25a
-      size: 42060
+      md5: 3a0625333e0eca08ed8cc99b3e8aaae9
+      size: 41788
     params:
       params.yaml:
         subset.by: Virus,MajorVariant
     outs:
     - path: data/3di/fa/subset.fa
       hash: md5
-      md5: 3bb5ef4c18a4b11e0b425ee7f0f618c8
-      size: 40404
+      md5: 1816549633e0f57226bc609dca455ccd
+      size: 40441
     - path: data/aa/fa/subset.fa
       hash: md5
-      md5: 8f6ff39b5f93509c14862cef26aa99ad
+      md5: a61a210fd81f4e4e7aff79961c9d3816
       size: 47804
+    - path: data/metadata/ranked.csv
+      hash: md5
+      md5: 078dfa1126ffd2cfae5a143536c4fc84
+      size: 54064
     - path: data/metadata/subset.csv
       hash: md5
-      md5: 9ba00a674514b95b79567408fce0087a
-      size: 7687
+      md5: ed7da62452d73f04861d1cea094b7fdb
+      size: 6518
+  cut:
+    cmd: "python -m pipeline.modelling.cut data/3di/fa/subset.fa 150\npython -m pipeline.modelling.cut
+      data/aa/fa/subset.fa 150\n"
+    deps:
+    - path: data/3di/fa/subset.fa
+      hash: md5
+      md5: 1816549633e0f57226bc609dca455ccd
+      size: 40441
+    - path: data/aa/fa/subset.fa
+      hash: md5
+      md5: a61a210fd81f4e4e7aff79961c9d3816
+      size: 47804
+    params:
+      params.yaml:
+        cut.min_size: 150
+    outs:
+    - path: data/3di/fa/cut/subset
+      hash: md5
+      md5: b8653436b2a86622d1c1bb74bab276d9.dir
+      size: 41958
+      nfiles: 7
+    - path: data/aa/fa/cut/subset
+      hash: md5
+      md5: 41a86566fa6ca4ba2fc6b235c22f98ef.dir
+      size: 49432
+      nfiles: 8
+  iqtree_base:
+    cmd: "bash pipeline/modelling/iqtree_base.sh data/3di/fa/subset.fa data/3di/trees/base
+      VK23,Q.3DI.AF,Q.3DI.LLM FU,F E,G,R 42 16\nbash pipeline/modelling/iqtree_base.sh
+      data/aa/fa/subset.fa data/aa/trees/base Blosum62,Dayhoff,DCMut,JTT,JTTDCMut,LG,Poisson,PMB,WAG,EX2,EX3,EHO,EX_EHO,FLU,FLAVI,Q.pfam
+      FU,F E,G,R 42 16\n"
+    deps:
+    - path: data/3di/fa/subset.fa
+      hash: md5
+      md5: 1816549633e0f57226bc609dca455ccd
+      size: 40441
+    - path: data/aa/fa/subset.fa
+      hash: md5
+      md5: a61a210fd81f4e4e7aff79961c9d3816
+      size: 47804
+    - path: data/models
+      hash: md5
+      md5: d00908f406bc4f02944a9a06783a5437.dir
+      size: 8179
+      nfiles: 4
+    params:
+      params.yaml:
+        iqtree.mfreq: FU,F
+        iqtree.mrate: E,G,R
+        iqtree.mset_3di: VK23,Q.3DI.AF,Q.3DI.LLM
+        iqtree.mset_aa: 
+          Blosum62,Dayhoff,DCMut,JTT,JTTDCMut,LG,Poisson,PMB,WAG,EX2,EX3,EHO,EX_EHO,FLU,FLAVI,Q.pfam
+        seed: 42
+        threads: 16
+    outs:
+    - path: data/3di/trees/base.iqtree
+      hash: md5
+      md5: b3d298d03710f62330ba764126a4f14d
+      size: 11991
+    - path: data/3di/trees/best_model.txt
+      hash: md5
+      md5: dbb699fd020e03d7751b7e77f19d99b0
+      size: 14
+    - path: data/aa/trees/base.iqtree
+      hash: md5
+      md5: 4e37b7d1c599802b7ac5cba75a814eb2
+      size: 30709
+    - path: data/aa/trees/best_model.txt
+      hash: md5
+      md5: 155e45338cce6f1c51aef71aa7943ee4
+      size: 9
+  iqtree_cut:
+    cmd: "bash pipeline/modelling/iqtree_cut.sh data/3di/fa/cut/subset data/3di/trees/cut
+      \"$(cat data/3di/trees/best_model.txt)\" 42 16\nbash pipeline/modelling/iqtree_cut.sh
+      data/aa/fa/cut/subset data/aa/trees/cut \"$(cat data/aa/trees/best_model.txt)\"\
+      \ 42 16\n"
+    deps:
+    - path: data/3di/fa/cut/subset
+      hash: md5
+      md5: b8653436b2a86622d1c1bb74bab276d9.dir
+      size: 41958
+      nfiles: 7
+    - path: data/3di/trees/best_model.txt
+      hash: md5
+      md5: dbb699fd020e03d7751b7e77f19d99b0
+      size: 14
+    - path: data/aa/fa/cut/subset
+      hash: md5
+      md5: 41a86566fa6ca4ba2fc6b235c22f98ef.dir
+      size: 49432
+      nfiles: 8
+    - path: data/aa/trees/best_model.txt
+      hash: md5
+      md5: 155e45338cce6f1c51aef71aa7943ee4
+      size: 9
+    - path: data/models
+      hash: md5
+      md5: d00908f406bc4f02944a9a06783a5437.dir
+      size: 8179
+      nfiles: 4
+    params:
+      params.yaml:
+        seed: 42
+        threads: 16
+    outs:
+    - path: data/3di/trees/cut
+      hash: md5
+      md5: d2def50ba53078e487f30645e3536707.dir
+      size: 361981
+      nfiles: 42
+    - path: data/3di/trees/cut.trees
+      hash: md5
+      md5: 26c3ea859f1b4ac24908da7cfed06860
+      size: 8253
+    - path: data/aa/trees/cut
+      hash: md5
+      md5: 36c56582b4efcd88609557bd8683f3fc.dir
+      size: 434936
+      nfiles: 51
+    - path: data/aa/trees/cut.trees
+      hash: md5
+      md5: dd2bb947b049cf9cf53b6f1bd0177c04
+      size: 9432
+  mast:
+    cmd: "bash pipeline/modelling/mast.sh data/3di/fa/subset.fa \"$(cat data/3di/trees/best_model.txt)\"\
+      \ data/3di/trees/cut.trees data/3di/trees/mast 42 16 BIC\nbash pipeline/modelling/mast.sh
+      data/aa/fa/subset.fa \"$(cat data/aa/trees/best_model.txt)\" data/aa/trees/cut.trees
+      data/aa/trees/mast 42 16 BIC\n"
+    deps:
+    - path: data/3di/fa/subset.fa
+      hash: md5
+      md5: 1816549633e0f57226bc609dca455ccd
+      size: 40441
+    - path: data/3di/trees/best_model.txt
+      hash: md5
+      md5: dbb699fd020e03d7751b7e77f19d99b0
+      size: 14
+    - path: data/3di/trees/cut.trees
+      hash: md5
+      md5: 26c3ea859f1b4ac24908da7cfed06860
+      size: 8253
+    - path: data/aa/fa/subset.fa
+      hash: md5
+      md5: a61a210fd81f4e4e7aff79961c9d3816
+      size: 47804
+    - path: data/aa/trees/best_model.txt
+      hash: md5
+      md5: 155e45338cce6f1c51aef71aa7943ee4
+      size: 9
+    - path: data/aa/trees/cut.trees
+      hash: md5
+      md5: dd2bb947b049cf9cf53b6f1bd0177c04
+      size: 9432
+    - path: data/models
+      hash: md5
+      md5: d00908f406bc4f02944a9a06783a5437.dir
+      size: 8179
+      nfiles: 4
+    params:
+      params.yaml:
+        seed: 42
+        threads: 16
+    outs:
+    - path: data/3di/trees/cut.trees.sorted
+      hash: md5
+      md5: a4e13cdc95c71d13705c3c797e5196b9
+      size: 8253
+    - path: data/3di/trees/mast
+      hash: md5
+      md5: facc9dc40306d47b532b1bdf355c2ccc.dir
+      size: 595816
+      nfiles: 34
+    - path: data/3di/trees/mast.csv
+      hash: md5
+      md5: 6e21a1d4e851a95225660e2d7e7da8c6
+      size: 224
+    - path: data/aa/trees/cut.trees.sorted
+      hash: md5
+      md5: 87d13fb82857e91b82df2e8b91eac1cf
+      size: 9432
+    - path: data/aa/trees/mast
+      hash: md5
+      md5: 09ea5d969c1650cf372bd772a206ce23.dir
+      size: 907035
+      nfiles: 40
+    - path: data/aa/trees/mast.csv
+      hash: md5
+      md5: 629b29cd0d5ff78ac56eb53fdf11ede6
+      size: 259
+  download_interproscan_data:
+    cmd: curl -O 
+      http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.77-108.0/alt/interproscan-data-5.77-108.0.tar.gz
+      && curl -O 
+      http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.77-108.0/alt/interproscan-data-5.77-108.0.tar.gz.md5
+      && md5sum -c interproscan-data-5.77-108.0.tar.gz.md5 && tar -pxzf 
+      interproscan-data-5.77-108.0.tar.gz -C data && rm 
+      interproscan-data-5.77-108.0.tar.gz 
+      interproscan-data-5.77-108.0.tar.gz.md5
+    params:
+      params.yaml:
+        interproscan.version: 5.77-108.0
+    outs:
+    - path: data/interproscan-5.77-108.0/data
+      hash: md5
+      md5: bd4fc01ba8e8bd894a79c73c323b03e0.dir
+      size: 36322085162
+      nfiles: 86676
+  extract_domains:
+    cmd: bash pipeline/preprocessing/extract_domains.sh data/aa/fa/filtered.fa 
+      data/domains/interproscan.tsv 5.77-108.0
+    deps:
+    - path: data/aa/fa/filtered.fa
+      hash: md5
+      md5: a5fe53addac488d593e0da94d13fa4e0
+      size: 405712
+    - path: data/interproscan-5.77-108.0/data
+      hash: md5
+      md5: bd4fc01ba8e8bd894a79c73c323b03e0.dir
+      size: 36322085162
+      nfiles: 86676
+    params:
+      params.yaml:
+        interproscan.version: 5.77-108.0
+    outs:
+    - path: data/domains/interproscan.tsv
+      hash: md5
+      md5: 97cbd6fdd3b98197f975483e7303021c
+      size: 2392067
+  convert_domain_coords:
+    cmd: python -m pipeline.preprocessing.convert_domain_coords 
+      data/domains/interproscan.tsv data/aa/fa/filtered.fa 
+      data/foldseek/aa_foldseek.fa data/aa/fa/chains.json data/aa/fa/subset.fa 
+      data/3di/fa/subset.fa data/domains/domains.tsv
+    deps:
+    - path: data/3di/fa/subset.fa
+      hash: md5
+      md5: 1816549633e0f57226bc609dca455ccd
+      size: 40441
+    - path: data/aa/fa/chains.json
+      hash: md5
+      md5: b540cb7e09c4900f1025e95f44aabaf2
+      size: 9782
+    - path: data/aa/fa/filtered.fa
+      hash: md5
+      md5: a5fe53addac488d593e0da94d13fa4e0
+      size: 405712
+    - path: data/aa/fa/subset.fa
+      hash: md5
+      md5: a61a210fd81f4e4e7aff79961c9d3816
+      size: 47804
+    - path: data/domains/interproscan.tsv
+      hash: md5
+      md5: 97cbd6fdd3b98197f975483e7303021c
+      size: 2392067
+    - path: data/foldseek/aa_foldseek.fa
+      hash: md5
+      md5: 4e2a885e20229c38caf7a5f32314496e
+      size: 2734651
+    outs:
+    - path: data/domains/domains.tsv
+      hash: md5
+      md5: 1a7b949aff428c9b16ae36b4882b5ee3
+      size: 89297

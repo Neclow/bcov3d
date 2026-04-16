@@ -8,12 +8,18 @@ dirs:
   models: data/models
   foldseek: data/foldseek
   domains: data/domains
+  aa_trees: data/aa/trees
+  3di_trees: data/3di/trees
   brms: data/brms
   img: img
 
 # General
 threads: 16
 seed: 42
+
+# Cleaning
+clean:
+  min_3di_len: 838
 
 # Alignment
 mafft:
@@ -26,3 +32,18 @@ trimal:
 # Subset
 subset:
   by: Virus,MajorVariant
+
+# Cut (alignment partitioning for MAST)
+cut:
+  min_size: 150
+
+# InterProScan
+interproscan:
+  version: 5.77-108.0
+
+# IQ-TREE
+iqtree:
+  mset_aa: Blosum62,Dayhoff,DCMut,JTT,JTTDCMut,LG,Poisson,PMB,WAG,EX2,EX3,EHO,EX_EHO,FLU,FLAVI,Q.pfam
+  mset_3di: VK23,Q.3DI.AF,Q.3DI.LLM
+  mfreq: FU,F
+  mrate: E,G,R
